@@ -85,6 +85,92 @@
 #include <sys/socket.h>
 #endif
 
+#if defined(_3DS)
+#include <unistd.h>
+#include <sys/unistd.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
+#include <3ds.h>
+
+static int
+socketpair_3ds (int domain, int type, int protocol, int socks[2])
+{
+  union
+  {
+    struct sockaddr_in inaddr;
+    struct sockaddr addr;
+  } a;
+
+  int listener;
+  socklen_t addrlen = sizeof (a.inaddr);
+
+  int reuse = 1;
+  // char data[2][12];
+  // ssize_t dlen;
+
+  (void) domain;
+  (void) type;
+  (void) protocol;
+
+  listener = socket (domain, type, protocol);
+  if (listener == -1)
+    return -1;
+
+  memset (&a, 0, sizeof (a));
+  a.inaddr.sin_family = domain;
+  a.inaddr.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
+
+  // FIXME:
+  // a.inaddr.sin_port = 0;
+  a.inaddr.sin_port = htons (10000);
+
+
+  socks[0] = socks[1] = -1;
+
+  if (setsockopt (listener, SOL_SOCKET, SO_REUSEADDR,
+          (char *) &reuse, (socklen_t) sizeof (reuse)) == -1)
+    goto error;
+  if (bind (listener, &a.addr, addrlen) == -1)
+    goto error;
+  if (getsockname (listener, &a.addr, &addrlen) == -1)
+    goto error;
+  if (listen (listener, 1) == -1)
+    goto error;
+
+  socks[0] = socket (domain, type, 0);
+  if (socks[0] == -1)
+    goto error;
+  if (connect (socks[0], &a.addr, sizeof (a.inaddr)) == -1)
+    goto error;
+
+  socks[1] = accept (listener, NULL, NULL);
+  if (socks[1] == -1)
+    goto error;
+
+  /* verify that nothing else connected */
+  // msnprintf (data[0], sizeof (data[0]), "%p", socks);
+  // dlen = strlen (data[0]);
+  // if (swrite (socks[0], data[0], dlen) != dlen)
+  //   goto error;
+  // if (sread (socks[1], data[1], sizeof (data[1])) != dlen)
+  //   goto error;
+  // if (memcmp (data[0], data[1], dlen))
+  //   goto error;
+
+  closesocket (listener);
+  return 0;
+
+error:
+  closesocket (listener);
+  closesocket (socks[0]);
+  closesocket (socks[1]);
+  return -1;
+}
+
+#endif /* _3DS */
+
 #ifdef G_OS_WIN32
 #  ifndef EWOULDBLOCK
 #  define EWOULDBLOCK EAGAIN    /* This is just to placate gcc */
@@ -139,7 +225,11 @@ struct _GstPoll
    * thread */
   GArray *active_fds;
 
-#ifndef G_OS_WIN32
+#if defined(_3DS)
+  LightEvent *event;
+#endif
+
+#if !defined(G_OS_WIN32)
   GstPollFD control_read_fd;
   GstPollFD control_write_fd;
 #else
@@ -172,7 +262,25 @@ static gboolean gst_poll_add_fd_unlocked (GstPoll * set, GstPollFD * fd);
 #define TEST_REBUILD(s)     (g_atomic_int_compare_and_exchange(&(s)->rebuild, 1, 0))
 #define MARK_REBUILD(s)     (g_atomic_int_set(&(s)->rebuild, 1))
 
-#ifndef G_OS_WIN32
+
+#if defined(_3DS)
+
+static gboolean
+wake_event (GstPoll * set)
+{
+  LightEvent_Signal (set->event);
+  return TRUE;
+}
+
+static gboolean
+release_event (GstPoll * set)
+{
+  LightEvent_Wait (set->event);
+  LightEvent_Clear (set->event);
+  return TRUE;
+}
+
+#elif !defined(G_OS_WIN32)
 
 static gboolean
 wake_event (GstPoll * set)
@@ -354,7 +462,13 @@ release_all_wakeup (GstPoll * set)
 static gint
 find_index (GArray * array, GstPollFD * fd)
 {
-#ifndef G_OS_WIN32
+// #if defined(_3DS)
+//   // TODO:
+//   struct pollfd *ifd;
+
+// #elif !defined(G_OS_WIN32)
+
+#if !defined(G_OS_WIN32)
   struct pollfd *ifd;
 #else
   WinsockFd *ifd;
@@ -363,7 +477,11 @@ find_index (GArray * array, GstPollFD * fd)
 
   /* start by assuming the index found in the fd is still valid */
   if (fd->idx >= 0 && fd->idx < array->len) {
-#ifndef G_OS_WIN32
+#if defined(_3DS)
+    // TODO:
+    ifd = &g_array_index (array, struct pollfd, fd->idx);
+
+#elif !defined(G_OS_WIN32)
     ifd = &g_array_index (array, struct pollfd, fd->idx);
 #else
     ifd = &g_array_index (array, WinsockFd, fd->idx);
@@ -376,7 +494,11 @@ find_index (GArray * array, GstPollFD * fd)
 
   /* the pollfd array has changed and we need to lookup the fd again */
   for (i = 0; i < array->len; i++) {
-#ifndef G_OS_WIN32
+#if defined(_3DS)
+    // TODO:
+    ifd = &g_array_index (array, struct pollfd, i);
+
+#elif !defined(G_OS_WIN32)
     ifd = &g_array_index (array, struct pollfd, i);
 #else
     ifd = &g_array_index (array, WinsockFd, i);
@@ -463,7 +585,11 @@ choose_mode (GstPoll * set, GstClockTime timeout)
   return mode;
 }
 
-#ifndef G_OS_WIN32
+// #if defined(_3DS)
+// TODO:
+
+// #elif !defined(G_OS_WIN32)
+#if !defined(G_OS_WIN32)
 static gint
 pollfd_to_fd_set (GstPoll * set, fd_set * readfds, fd_set * writefds,
     fd_set * errorfds)
@@ -680,7 +806,14 @@ gst_poll_new (gboolean controllable)
   nset = g_slice_new0 (GstPoll);
   GST_DEBUG ("%p: new controllable : %d", nset, controllable);
   g_mutex_init (&nset->lock);
-#ifndef G_OS_WIN32
+
+#if defined(_3DS)
+  nset->event = (LightEvent *) malloc (sizeof (LightEvent));
+  LightEvent_Init (nset->event, RESET_STICKY);
+#endif
+
+// #elif !defined(G_OS_WIN32)
+#if !defined(G_OS_WIN32)
   nset->mode = GST_POLL_MODE_AUTO;
   nset->fds = g_array_new (FALSE, FALSE, sizeof (struct pollfd));
   nset->active_fds = g_array_new (FALSE, FALSE, sizeof (struct pollfd));
@@ -689,8 +822,14 @@ gst_poll_new (gboolean controllable)
   {
     gint control_sock[2];
 
+#if defined(_3DS)
+    if (socketpair_3ds (PF_INET, SOCK_STREAM, 0, control_sock) < 0)
+      goto no_socket_pair;
+#else
     if (socketpair (PF_UNIX, SOCK_STREAM, 0, control_sock) < 0)
       goto no_socket_pair;
+#endif
+
 
     nset->control_read_fd.fd = control_sock[0];
     nset->control_write_fd.fd = control_sock[1];
@@ -718,7 +857,8 @@ gst_poll_new (gboolean controllable)
   return nset;
 
   /* ERRORS */
-#ifndef G_OS_WIN32
+// #if !defined(G_OS_WIN32) && !defined(_3DS)
+#if !defined(G_OS_WIN32)
 no_socket_pair:
   {
     GST_WARNING ("%p: can't create socket pair !", nset);
@@ -771,7 +911,18 @@ gst_poll_free (GstPoll * set)
 
   GST_DEBUG ("%p: freeing", set);
 
-#ifndef G_OS_WIN32
+#if defined(_3DS)
+
+  // clear sticky event if it wasnt cleared already
+  if (set->event != -2)
+    LightEvent_Clear (set->event);
+  free (set->event);
+  set->event = NULL;
+#endif
+
+// #elif !defined(G_OS_WIN32)
+
+#if !defined(G_OS_WIN32)
   if (set->control_write_fd.fd >= 0)
     close (set->control_write_fd.fd);
   if (set->control_read_fd.fd >= 0)
@@ -811,7 +962,12 @@ gst_poll_get_read_gpollfd (GstPoll * set, GPollFD * fd)
   g_return_if_fail (set != NULL);
   g_return_if_fail (fd != NULL);
 
-#ifndef G_OS_WIN32
+
+// #if defined(_3DS)
+//   fd->fd = (gint64) set->event;
+
+// #elif !defined(G_OS_WIN32)
+#if !defined(G_OS_WIN32)
   fd->fd = set->control_read_fd.fd;
 #else
 #if GLIB_SIZEOF_VOID_P == 8
@@ -849,7 +1005,13 @@ gst_poll_add_fd_unlocked (GstPoll * set, GstPollFD * fd)
 
   idx = find_index (set->fds, fd);
   if (idx < 0) {
-#ifndef G_OS_WIN32
+
+
+// #if defined(_3DS)
+    // TODO:
+// #elif !defined(G_OS_WIN32)
+
+#if !defined(G_OS_WIN32)
     struct pollfd nfd;
 
     nfd.fd = fd->fd;
@@ -983,7 +1145,13 @@ gst_poll_fd_ctl_write (GstPoll * set, GstPollFD * fd, gboolean active)
 
   idx = find_index (set->fds, fd);
   if (idx >= 0) {
-#ifndef G_OS_WIN32
+
+// #if defined(_3DS)
+//     // TODO:
+
+// #elif !defined(G_OS_WIN32)
+
+#if !defined(G_OS_WIN32)
     struct pollfd *pfd = &g_array_index (set->fds, struct pollfd, idx);
 
     if (active)
@@ -1017,7 +1185,13 @@ gst_poll_fd_ctl_read_unlocked (GstPoll * set, GstPollFD * fd, gboolean active)
   idx = find_index (set->fds, fd);
 
   if (idx >= 0) {
-#ifndef G_OS_WIN32
+
+// #if defined(_3DS)
+    //TODO:
+
+// #elif !defined(G_OS_WIN32)
+
+#if !defined(G_OS_WIN32)
     struct pollfd *pfd = &g_array_index (set->fds, struct pollfd, idx);
 
     if (active)
@@ -1178,7 +1352,12 @@ gst_poll_fd_has_closed (const GstPoll * set, GstPollFD * fd)
 
   idx = find_index (set->active_fds, fd);
   if (idx >= 0) {
-#ifndef G_OS_WIN32
+
+// #if defined(_3DS)
+    // TODO:
+
+// #elif !defined(G_OS_WIN32)
+#if !defined(G_OS_WIN32)
     struct pollfd *pfd = &g_array_index (set->active_fds, struct pollfd, idx);
 
     res = (pfd->revents & POLLHUP) != 0;
@@ -1220,7 +1399,12 @@ gst_poll_fd_has_error (const GstPoll * set, GstPollFD * fd)
 
   idx = find_index (set->active_fds, fd);
   if (idx >= 0) {
-#ifndef G_OS_WIN32
+
+// #if defined(_3DS)
+    // TODO:
+
+// #elif !defined(G_OS_WIN32)
+#if !defined(G_OS_WIN32)
     struct pollfd *pfd = &g_array_index (set->active_fds, struct pollfd, idx);
 
     res = (pfd->revents & (POLLERR | POLLNVAL)) != 0;
@@ -1251,7 +1435,12 @@ gst_poll_fd_can_read_unlocked (const GstPoll * set, GstPollFD * fd)
 
   idx = find_index (set->active_fds, fd);
   if (idx >= 0) {
-#ifndef G_OS_WIN32
+
+// #if defined(_3DS)
+    //
+
+// #elif !defined(G_OS_WIN32)
+#if !defined(G_OS_WIN32)
     struct pollfd *pfd = &g_array_index (set->active_fds, struct pollfd, idx);
 
     res = (pfd->revents & POLLIN) != 0;
@@ -1318,7 +1507,12 @@ gst_poll_fd_can_write (const GstPoll * set, GstPollFD * fd)
 
   idx = find_index (set->active_fds, fd);
   if (idx >= 0) {
-#ifndef G_OS_WIN32
+
+// #if defined(_3DS)
+    //
+
+// #elif !defined(G_OS_WIN32)
+#if !defined(G_OS_WIN32)
     struct pollfd *pfd = &g_array_index (set->active_fds, struct pollfd, idx);
 
     res = (pfd->revents & POLLOUT) != 0;
@@ -1436,7 +1630,11 @@ gst_poll_wait (GstPoll * set, GstClockTime timeout)
 
     if (TEST_REBUILD (set)) {
       g_mutex_lock (&set->lock);
-#ifndef G_OS_WIN32
+
+// #if defined(_3DS)
+      //
+// #elif !defined(G_OS_WIN32)
+#if !defined(G_OS_WIN32)
       g_array_set_size (set->active_fds, set->fds->len);
       memcpy (set->active_fds->data, set->fds->data,
           set->fds->len * sizeof (struct pollfd));
@@ -1503,7 +1701,12 @@ gst_poll_wait (GstPoll * set, GstClockTime timeout)
 #endif
       case GST_POLL_MODE_SELECT:
       {
-#ifndef G_OS_WIN32
+
+// #if defined(_3DS)
+        //
+
+// #elif !defined(G_OS_WIN32)
+#if !defined(G_OS_WIN32)
         fd_set readfds;
         fd_set writefds;
         fd_set errorfds;

@@ -63,7 +63,11 @@ typedef struct
 {
   const gchar *type;
   const gchar *desc;
+#ifdef _3DS
+  FormatFlags flags;
+#else
   FormatFlags flags:24;
+#endif
   gchar ext[5];                 /* file extension */
 } FormatInfo;
 

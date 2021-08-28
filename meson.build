@@ -325,20 +325,39 @@ if get_option('default_library') == 'static'
   endif
 
   # Build both shared and static library
-  gstfull = both_libraries('gstreamer-full-1.0',
-    init_static_plugins_c,
-    link_with : all_plugins,
-    link_args: gstfull_link_args,
-    link_whole : exposed_libs,
-    dependencies : incdir_deps + glib_deps,
-    link_depends : link_deps,
-    install : true,
-  )
+  if host_machine.system() == 'horizon'
+    gstfull = static_library('gstreamer-full-1.0',
+      init_static_plugins_c,
+      link_with : all_plugins,
+      link_args: gstfull_link_args,
+      link_whole : exposed_libs,
+      dependencies : incdir_deps + glib_deps,
+      link_depends : link_deps,
+      install : true,
+    )
 
-  gst_full_dep = declare_dependency(link_with: gstfull.get_shared_lib(),
-    dependencies : incdir_deps + glib_deps,
-    include_directories: include_directories('.')
-  )
+    gst_full_dep = declare_dependency(link_with: gstfull,
+      dependencies : incdir_deps + glib_deps,
+      include_directories: include_directories('.')
+    )
+  else
+    gstfull = static_libraries('gstreamer-full-1.0',
+      init_static_plugins_c,
+      link_with : all_plugins,
+      link_args: gstfull_link_args,
+      link_whole : exposed_libs,
+      dependencies : incdir_deps + glib_deps,
+      link_depends : link_deps,
+      install : true,
+    )
+
+    gst_full_dep = declare_dependency(link_with: gstfull.get_shared_lib(),
+      dependencies : incdir_deps + glib_deps,
+      include_directories: include_directories('.')
+    )
+  endif
+
+
 
   gst_full_libs_private = cc.get_supported_link_arguments(['-Wl,--undefined=gst_init_static_plugins'])
   if gst_full_libs_private == []

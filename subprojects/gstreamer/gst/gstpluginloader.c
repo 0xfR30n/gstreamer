@@ -517,7 +517,9 @@ plugin_loader_cleanup_child (GstPluginLoader * l)
   close (l->fd_w.fd);
   close (l->fd_r.fd);
 
-#ifndef G_OS_WIN32
+#ifdef _3DS
+
+#elif !defined(G_OS_WIN32)
   GST_LOG ("waiting for child process to exit");
   waitpid (l->child_pid, NULL, 0);
 #else

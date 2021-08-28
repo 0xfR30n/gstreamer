@@ -34,7 +34,7 @@
 #include <sys/socket.h>
 #endif
 
-#ifndef G_OS_WIN32
+#if !defined(G_OS_WIN32) && !defined(_3DS)
 #include <netinet/in.h>
 #endif
 

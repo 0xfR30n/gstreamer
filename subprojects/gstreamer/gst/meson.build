@@ -151,7 +151,7 @@ gst_headers = files(
 install_headers(gst_headers, subdir : 'gstreamer-1.0/gst')
 
 gst_registry = get_option('registry')
-if gst_registry
+if gst_registry and host_system != 'horizon'
   gst_registry_sources = files('gstregistrybinary.c')
 else
   gst_registry_sources = []
@@ -167,7 +167,7 @@ else
   gst_cdata.set('GST_DISABLE_GST_DEBUG_DEFINE', '#define GST_DISABLE_GST_DEBUG 1')
 endif
 
-if gst_registry
+if gst_registry and host_system != 'horizon'
   gst_cdata.set('GST_DISABLE_REGISTRY_DEFINE', '#undef GST_DISABLE_REGISTRY')
 else
   gst_cdata.set('GST_DISABLE_REGISTRY_DEFINE', '#define GST_DISABLE_REGISTRY 1')

@@ -386,7 +386,7 @@ static void gst_system_clock_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
 
 static GstClockTime gst_system_clock_get_internal_time (GstClock * clock);
-#if !defined HAVE_POSIX_TIMERS || !defined HAVE_CLOCK_GETTIME
+#if defined(_3DS) || !defined HAVE_POSIX_TIMERS || !defined HAVE_CLOCK_GETTIME
 static GstClockTime gst_system_clock_get_mono_time (GstSystemClock * clock);
 static GstClockTime gst_system_clock_get_real_time ();
 #endif
@@ -830,7 +830,7 @@ static GstClockTime
 gst_system_clock_get_internal_time (GstClock * clock)
 {
   GstSystemClock *sysclock = GST_SYSTEM_CLOCK_CAST (clock);
-#if defined HAVE_POSIX_TIMERS && defined HAVE_CLOCK_GETTIME
+#if !defined(_3DS) && defined HAVE_POSIX_TIMERS && defined HAVE_CLOCK_GETTIME
   // BSD and Linux' Posix timers and clock_gettime cover all of the different clock types
   // without need for special handling so we'll use those.
   clockid_t ptype;
@@ -851,7 +851,7 @@ gst_system_clock_get_internal_time (GstClock * clock)
 #endif /* !HAVE_POSIX_TIMERS || !HAVE_CLOCK_GETTIME */
 }
 
-#if !defined HAVE_POSIX_TIMERS || !defined HAVE_CLOCK_GETTIME
+#if defined(_3DS) || !defined HAVE_POSIX_TIMERS || !defined HAVE_CLOCK_GETTIME
 static GstClockTime
 gst_system_clock_get_real_time ()
 {
