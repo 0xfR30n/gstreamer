@@ -36,6 +36,7 @@ meson setup --buildtype=plain \
     -Dgst-plugins-bad:codecs=enabled \
     -Dgst-plugins-good:rtp=enabled \
     -Dgst-plugins-ugly:x264=enabled \
+    -Dgpl=enabled \
     -Drs=disabled \
     -Dtests=disabled \
     -Dcoretracers=disabled \
