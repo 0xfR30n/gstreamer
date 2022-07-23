@@ -1,6 +1,10 @@
 adaptivedemux_sources = files('gstadaptivedemux.c')
 adaptivedemux_headers = files('gstadaptivedemux.h')
 
+if host_system == 'horizon'
+  subdir_done()
+endif
+
 pkg_name = 'gstreamer-adaptivedemux-1.0'
 gstadaptivedemux = library('gstadaptivedemux-' + api_version,
   adaptivedemux_sources,
