@@ -2,8 +2,8 @@ if host_system != 'horizon'
   subdir_done()
 endif
 
-
 n3ds_sources = [
+  'n3dsvideosrc.c',
   'n3dsimagesink.c',
   'n3ds.c'
 ]

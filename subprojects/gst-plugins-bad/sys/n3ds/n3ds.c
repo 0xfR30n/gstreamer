@@ -3,6 +3,7 @@
 #endif
 
 #include "n3dsimagesink.h"
+#include "n3dsvideosrc.h"
 
 #include <gst/gst.h>
 
@@ -20,11 +21,15 @@ plugin_init (GstPlugin * plugin)
       gst_element_register (plugin, "n3dsimagesink", GST_RANK_NONE,
       N3DS_TYPE_IMAGE_SINK);
 
+  ret |=
+      gst_element_register (plugin, "n3dsvideosrc", GST_RANK_NONE,
+      N3DS_TYPE_VIDEO_SRC);
+
   return ret;
 }
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
     n3ds,
-    "Elements for access features on the Nintendo 3DS",
+    "Elements for access features on the N3DS",
     plugin_init, VERSION, "LGPL", GST_PACKAGE_NAME, GST_PACKAGE_ORIGIN)

@@ -36,7 +36,7 @@ G_DEFINE_TYPE (N3DSImageSink, n3ds_image_sink, GST_TYPE_BASE_SINK);
 GST_ELEMENT_REGISTER_DEFINE_WITH_CODE (n3dsimagesink, "n3dsimagesink",
     GST_RANK_NONE, N3DS_TYPE_IMAGE_SINK,
     GST_DEBUG_CATEGORY_INIT (n3ds_image_sink_debug, "n3dsimagesink", 0,
-        "Nintendo 3DS Image Sink"));
+        "N3DS Image Sink"));
 
 static void
 rotate90 (unsigned char *buffer, const unsigned int width,
@@ -104,8 +104,7 @@ n3ds_image_sink_class_init (N3DSImageSinkClass * klass)
 
   gst_element_class_set_static_metadata (gstelement_class,
       "N3DS Image Sink",
-      "Sink",
-      "Image sink for the Nintendo 3DS", "fR30n <0xfR30n@protonmail.com>");
+      "Sink", "Image sink for the N3DS", "fR30n <0xfR30n@protonmail.com>");
 
   gst_element_class_add_static_pad_template (gstelement_class, &sinktemplate);
 }
