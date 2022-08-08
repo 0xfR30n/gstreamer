@@ -4,6 +4,7 @@
 
 #include "n3dsimagesink.h"
 #include "n3dsvideosrc.h"
+#include "n3dsaudiosrc.h"
 
 #include <gst/gst.h>
 
@@ -24,6 +25,10 @@ plugin_init (GstPlugin * plugin)
   ret |=
       gst_element_register (plugin, "n3dsvideosrc", GST_RANK_NONE,
       N3DS_TYPE_VIDEO_SRC);
+
+  ret |=
+      gst_element_register (plugin, "n3dsaudiosrc", GST_RANK_NONE,
+      N3DS_TYPE_AUDIO_SRC);
 
   return ret;
 }
